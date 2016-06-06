@@ -1,0 +1,2 @@
+[15-May-2016 17:42:29 Asia/Jakarta] PHP Fatal error:  Cannot redeclare m_login::login_mhs_apps() in /home/kpptech/public_html/operation/ayu/newabsensi/application/models/m_login.php on line 29
+[15-May-2016 17:43:52 Asia/Jakarta] PHP Fatal error:  Cannot redeclare m_login::login_mhs_apps() in /home/kpptech/public_html/operation/ayu/newabsensi/application/models/m_login.php on line 29
