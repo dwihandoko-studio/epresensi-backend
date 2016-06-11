@@ -15,8 +15,12 @@ class m_login extends CI_Model {
         }else{
 			$this->session->set_flashdata('GagalLogin', 'Ya');    
             return false;
-        }    
+        }
+        
+        
     }
+	
+	
 	
 	function login_mhs_apps($device_id,$nim){
 		$sql = "SELECT M.*,K.kelas,K.id_prodi,P.prodi,P.id_jurusan,J.jurusan FROM mahasiswa M JOIN kelas K on M.id_kelas = K.kode JOIN prodi P on K.id_prodi = P.kode JOIN jurusan J on P.id_jurusan = J.kode where M.device_id = '{$device_id}' AND M.nim = '{$nim}'";
@@ -29,8 +33,8 @@ class m_login extends CI_Model {
 		}
 	}
 	
-	function login_dosen_apps($device_id){
-		$sql = "SELECT * FROM dosen D JOIN jabatan J on D.id_jabatan = J.kode where D.device_id='{$device_id}'";
+	function login_dosen_apps($device_id,$nonip){
+		$sql = "SELECT * FROM dosen D JOIN jabatan J on D.id_jabatan = J.kode where D.device_id='{$device_id}' AND D.nip = '{$nonip}'";
 		$que = $this->db->query($sql)->result_array();
 		if(count($que)>0){
 			
@@ -38,5 +42,6 @@ class m_login extends CI_Model {
 		}else{
 			return false;
 		}
-	}	
+	}
+	
 }

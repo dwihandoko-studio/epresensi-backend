@@ -21,36 +21,37 @@ class m_api extends CI_Model {
 		} 
 		return $exe;
 	}
-	
-	function loginMhs($kode, $param = array()) {
-		$this->db->where ( "username", $kode );
-		$this->db->where ( "password", md5 ( $param ['password'] ) );
-		$query = $this->db->get ( "mhs" );
-		if ($query->num_rows () == 1) {
-			$data = $query->result_array ();
-			$this->db->flush_cache ();
-			$exe = array (
-					'mhs_id' => $data [0] ['mhs_id'],
-					'mhs_name' => $data [0] ['mhs_name'],
-					'kelas_id' => $data [0] ['kelas_id']
-			);
-		} 
-		return $exe;
+
+	function login_mhs($device_id, $nim){
+		$sql = "SELECT M.*,K.kelas,K.id_prodi,P.prodi,P.id_jurusan,J.jurusan 
+				FROM mahasiswa M JOIN kelas K ON M.id_kelas = K.kode 
+				JOIN prodi P ON K.id_prodi = P.kode 
+				JOIN jurusan J ON P.id_jurusan = J.kode 
+				where M.device_id = '{$device_id}' 
+				AND M.nim = '{$nim}'";
+
+		$que = $this->db->query($sql)->result_array();
+		if(count($que)>0){
+			
+		return $que[0];	
+		}else{
+		return false;
+		}
 	}
 	
-	function loginDosen($kode, $param = array()) {
-		$this->db->where ( "username", $kode );
-		$this->db->where ( "password", md5 ( $param ['password'] ) );
-		$query = $this->db->get ( "dosen" );
-		if ($query->num_rows () == 1) {
-			$data = $query->result_array ();
-			$this->db->flush_cache ();
-			$exe = array (
-					'dosen_id' => $data [0] ['dosen_id'],
-					'dosen_name' => $data [0] ['dosen_name']
-			);
-		} 
-		return $exe;
+	function login_dosen($device_id, $email){
+		$sql = "SELECT D.*, J.jabatan FROM dosen D 
+				JOIN jabatan J ON D.id_jabatan = J.kode 
+				WHERE D.device_id='{$device_id}' 
+				AND D.email = '{$email}'";
+		
+		$que = $this->db->query($sql)->result_array();
+		if(count($que)>0){
+			
+			return $que[0];	
+		}else{
+			return false;
+		}
 	}
 	
 	function listJadwal($param){
@@ -103,13 +104,140 @@ class m_api extends CI_Model {
 				JOIN mata_kuliah MP ON MYJ.id_mk = MP.kode
 				JOIN dosen D ON MYJ.id_dosen = D.nip
 				JOIN jabatan JB ON D.id_jabatan = JB.kode WHERE ".$sqlwhere;
+	
+		$que = $this->db->query($sql)->result_array();
+		return $que;
+	}
+	
+	function listJadwalDosen($param){
+		$newparam = array();
+		if(isset($param['hari'])){
+			
+		$newparam['hari'] =  $param['hari'];
 		
+		}
+		$newparam['id_dosen'] = $param['id_dosen'];
 		
+		$sqlwhere = "";
+		foreach($newparam as $key => $value){
+			if($sqlwhere!=""){
+				$sqlwhere.=" AND ";
+			}
+			$sqlwhere.=" ".$key." = '".$value."'";
+		}
+		
+		$sql = "SELECT
+					MYJ.*, K.kelas,
+					K.id_prodi,
+					P.prodi,
+					P.id_jurusan,
+					J.jurusan,
+					S.semester,
+					AK.akademik,
+					MYR.ruangan,
+					MYR.lantai,
+					MYR.latlong_a,
+					MYR.latlong_b,
+					MYR.latlong_c,
+					MYR.latlong_d,
+					MP.mata_kuliah,
+					MP.bobot,
+					D.nama_dosen,
+					D.no_hp,
+					D.id_jabatan,
+					JB.jabatan
+				FROM
+					`jadwal` MYJ
+				JOIN kelas K ON MYJ.id_kelas = K.kode
+				JOIN prodi P ON K.id_prodi = P.kode
+				JOIN jurusan J ON P.id_jurusan = J.kode
+				JOIN semester S ON MYJ.id_semester = S.kode
+				JOIN akademik AK ON MYJ.id_akademik = AK.kode
+				JOIN ruangan MYR ON MYJ.id_ruangan = MYR.kode
+				JOIN mata_kuliah MP ON MYJ.id_mk = MP.kode
+				JOIN dosen D ON MYJ.id_dosen = D.nip
+				JOIN jabatan JB ON D.id_jabatan = JB.kode WHERE ".$sqlwhere;
 		
 		$que = $this->db->query($sql)->result_array();
 		return $que;
+	}
+
+
+	function getAllRoom($param=array()){
 		
+		$sql = "SELECT *,
+				IF ((	SELECT COUNT(id)
+						FROM jadwal J
+						WHERE J.hari = {$param['hari']}
+						AND J.id_ruangan = R.kode
+						AND TIME(NOW()) >= J.jam_mulai
+						AND J.jam_selesai >= TIME(NOW())
+					) > 0,
+					'ada',
+					'kosong') AS status_ruangan
+				FROM ruangan R;";
+		$grab = $this->db->query($sql)->result_array();
+		return $grab;
+	}
+
+	function getJadwalFromRoom($param){
+		$newparam = array();
+		if(isset($param['hari'])){
+			
+		$newparam['hari'] =  $param['hari'];
 		
+		}
+		$newparam['id_ruangan'] = $param['id_ruangan'];
+		
+		$sqlwhere = "";
+		foreach($newparam as $key => $value){
+			if($sqlwhere!=""){
+				$sqlwhere.=" AND ";
+			}
+			$sqlwhere.=" ".$key." = '".$value."'";
+		}
+		
+		$sql = "SELECT MYJ.*, K.kelas,
+					K.id_prodi,
+					P.prodi,
+					P.id_jurusan,
+					J.jurusan,
+					S.semester,
+					AK.akademik,
+					MYR.ruangan,
+					MYR.lantai,
+					MYR.latlong_a,
+					MYR.latlong_b,
+					MYR.latlong_c,
+					MYR.latlong_d,
+					MP.mata_kuliah,
+					MP.bobot,
+					D.nama_dosen,
+					D.no_hp,
+					D.id_jabatan,
+					JB.jabatan
+				FROM`jadwal` MYJ
+				JOIN kelas K ON MYJ.id_kelas = K.kode
+				JOIN prodi P ON K.id_prodi = P.kode
+				JOIN jurusan J ON P.id_jurusan = J.kode
+				JOIN semester S ON MYJ.id_semester = S.kode
+				JOIN akademik AK ON MYJ.id_akademik = AK.kode
+				JOIN ruangan MYR ON MYJ.id_ruangan = MYR.kode
+				JOIN mata_kuliah MP ON MYJ.id_mk = MP.kode
+				JOIN dosen D ON MYJ.id_dosen = D.nip
+				JOIN jabatan JB ON D.id_jabatan = JB.kode WHERE ".$sqlwhere;
+		
+		$que = $this->db->query($sql)->result_array();
+		return $que;
+	}
+	
+	function daftarKehadiran($param=array()){
+		$sql = "SELECT * FROM kehadiran 
+				WHERE id_jadwal = '{$param['id_jadwal']}' 
+				AND tanggal >= CURDATE() 
+				AND tanggal < DATE_ADD(CURDATE(), INTERVAL 1 DAY)";
+		$query = $this->db->query($sql)->result_array();
+		return $query;
 	}
 	
 	function get_hari_id(){
@@ -131,10 +259,11 @@ class m_api extends CI_Model {
 		
 		$data_jadwal = $this->detail_jadwal($id_jadwal);
 		
-		$sql_in_lat = "SELECT *, AsText(LatLong) FROM log_presensi 
-						 WHERE LogPresensiID = '{$last_id}' AND Contains(
-						 GeomFromText('POLYGON((".str_replace(","," ",$data_jadwal['latlong_a']).", ".str_replace(","," ",$data_jadwal['latlong_b']).", ".str_replace(","," ",$data_jadwal['latlong_c']).", ".str_replace(","," ",$data_jadwal['latlong_d']).", ".str_replace(","," ",$data_jadwal['latlong_a'])."))'), LatLong );";
-		
+		$sql_in_lat = "SELECT *, AsText(LatLong) 
+						FROM log_presensi 
+						WHERE LogPresensiID = '{$last_id}' 
+						AND Contains(
+		GeomFromText('POLYGON((".str_replace(","," ",$data_jadwal['latlong_a']).", ".str_replace(","," ",$data_jadwal['latlong_b']).", ".str_replace(","," ",$data_jadwal['latlong_c']).", ".str_replace(","," ",$data_jadwal['latlong_d']).", ".str_replace(","," ",$data_jadwal['latlong_a'])."))'), LatLong );";
 		
 		$exe_in_lat = $this->db->query($sql_in_lat)->result_array();
 		if(count($exe_in_lat)>0){
@@ -145,7 +274,7 @@ class m_api extends CI_Model {
 	}
 	
 	function detail_jadwal($id_jadwal){
-		$sql_jadwal = "SELECT * FROM jadwal J join ruangan K on J.id_ruangan = K.kode WHERE J.kode = '{$id_jadwal}'";
+		$sql_jadwal = "SELECT * FROM jadwal J JOIN ruangan K ON J.id_ruangan = K.kode WHERE J.kode = '{$id_jadwal}'";
 		$exe_jadwal = $this->db->query($sql_jadwal)->result_array();
 		$data_jadwal = $exe_jadwal[0];
 		return $data_jadwal;
@@ -158,34 +287,116 @@ class m_api extends CI_Model {
 		return $data_jadwal;
 	}
 	
-	function insert_kehadiran($id_jadwal,$nim,$waktu_absen){
+	function copy_default($id_kelas, $id_jadwal){
+		$sql = "SELECT * FROM mahasiswa WHERE id_kelas='{$id_kelas}'";
+		$que = $this->db->query($sql)->result_array();
+		$tanggal = date('Y-m-d');
+		foreach($que as $value){
+			$cari_dulu = "SELECT * FROM kehadiran WHERE tanggal='{$tanggal}' AND nim='{$value['nim']}' AND id_jadwal='{$id_jadwal}'";
+			$que_cari_dulu = $this->db->query($cari_dulu)->result_array();
+			if(count($que_cari_dulu)==0){
+				$to_insert = array("tanggal" => date('Y-m-d'), 
+								   "nim" => $value['nim'],
+								   "id_jadwal" => $id_jadwal,
+								   "jam_presensi" => date('Y-m-d H:i:s'),
+								   "status" => 1,
+								   "keterlambatan" => 0,
+								   "created_at" =>  date('Y-m-d H:i:s'),
+								   "update_at" => date('Y-m-d H:i:s')
+								   );
+				$this->db->insert('kehadiran',$to_insert);
+			}	
+		}
+	}
+
+	function cek_kehadiran($nim, $id_jadwal){
+		$tanggal = date('Y-m-d');
+		$sql_kehadiran = "SELECT * FROM kehadiran WHERE nim='{$nim}' AND id_jadwal='{$id_jadwal}' AND tanggal='{$tanggal}'";
+		$exe_kehadiran = $this->db->query($sql_kehadiran)->result_array();
+		$data_kehadiran = $exe_kehadiran[0];
+		return $data_kehadiran;
+	}
+	
+	function insert_kehadiran($id_jadwal, $nim, $waktu_absen, $status_absen){
 		$data_jadwal = $this->detail_jadwal($id_jadwal);
 		$data_siswa  = $this->detail_siswa($nim);
+		$data_kehadiran = $this->cek_kehadiran($nim,$id_jadwal);
 		$tgl_skrg = date('Y-m-d');
-		$batas_toleransi = date('Y-m-d H:i:s',strtotime($tgl_skrg.' '.$data_jadwal['jam_mulai'].' + '.$data_siswa['kompensasi'].' minutes'));
+		$batas_toleransi = date('Y-m-d H:i:s',strtotime($tgl_skrg.' '.$data_jadwal['jam_mulai']));
 		$durasi_telat = "";
 		$status="";
+		$datetime1 = date_create($waktu_absen);
+		$datetime2 = date_create($batas_toleransi);
 		
-		if($waktu_absen < $batas_toleransi){ //ga telat
-			$durasi_telat = 0;
-			$status = 1;
-		}else{ //
-			
-			$durasi_telat = date("s",(strtotime($waktu_absen) - strtotime($tgl_skrg.' '.$data_jadwal['jam_mulai'].' + '.$data_siswa['kompensasi'].' minute')));
-			$status = 2; 
+		$this->copy_default($data_siswa['id_kelas'], $id_jadwal);
+		if($status_absen=="ok"){
+			if($waktu_absen < $batas_toleransi){ //ga telat
+				$durasi_telat = 0;
+				$status = 2;
+			}else{ //
+				$interval = date_diff($datetime1, $datetime2);
+				$hour = $interval->format('%h');
+				$min = $interval->format('%i');
+				$durasi_telat = ($hour * 60) + $min;
+				$status = 3; 
+			}
+			$cari_dulu = "SELECT * FROM kehadiran WHERE tanggal='{$tgl_skrg}' AND nim='{$nim}' AND id_jadwal='{$id_jadwal}'";
+			$que_cari_dulu = $this->db->query($cari_dulu)->result_array();
+			if(count($que_cari_dulu)==0){
+				$to_insert = array("tanggal" => date('Y-m-d'),
+								   "nim" => $nim,
+								   "id_jadwal" => $id_jadwal,
+								   "jam_presensi" => $waktu_absen,
+								   "status" => $status,
+								   "keterlambatan" => $durasi_telat,
+								   "created_at" =>  date('Y-m-d H:i:s'),
+								   "update_at" => date('Y-m-d H:i:s')
+								   );
+				$this->db->insert('kehadiran',$to_insert);
+			}else{
+				if($data_kehadiran['status'] == "absen"){
+					$to_insert = array("tanggal" => date('Y-m-d'),
+								   "nim" => $nim,
+								   "id_jadwal" => $id_jadwal,
+								   "jam_presensi" => $waktu_absen,
+								   "status" => $status,
+								   "keterlambatan" => $durasi_telat,
+								   "update_at" => date('Y-m-d H:i:s')
+								   );
+					$this->db->update('kehadiran',$to_insert,array("tanggal"=>$tgl_skrg,"nim"=>$nim,"id_jadwal"=>$id_jadwal));
+				}else{
+					$to_insert = array("tanggal" => date('Y-m-d'),
+								   "nim" => $nim,
+								   "id_jadwal" => $id_jadwal,
+								   "update_at" => date('Y-m-d H:i:s')
+								   );
+					$this->db->update('kehadiran',$to_insert,array("tanggal"=>$tgl_skrg,"nim"=>$nim,"id_jadwal"=>$id_jadwal));
+				}
+			}
+		}else{
+			$cari_dulu = "SELECT * FROM kehadiran WHERE tanggal='{$tgl_skrg}' AND nim='{$nim}' AND id_jadwal='{$id_jadwal}'";
+			$que_cari_dulu = $this->db->query($cari_dulu)->result_array();
+			if(count($que_cari_dulu)==0){
+				$to_insert = array("tanggal" => date('Y-m-d'), 
+								   "nim" => $nim,
+								   "id_jadwal" => $id_jadwal,
+								   "jam_presensi" => $waktu_absen,
+								   "status" => 1,
+								   "keterlambatan" => 0,
+								   "created_at" =>  date('Y-m-d H:i:s'),
+								   "update_at" => date('Y-m-d H:i:s')
+								   );
+				$this->db->insert('kehadiran',$to_insert);
+			}else{
+				$to_insert = array("tanggal" => date('Y-m-d'),
+								   "nim" => $nim,
+								   "id_jadwal" => $id_jadwal,
+								   "update_at" => date('Y-m-d H:i:s')
+								   );
+				$this->db->update('kehadiran',$to_insert,array("tanggal"=>$tgl_skrg,"nim"=>$nim,"id_jadwal"=>$id_jadwal));		
+			}
 		}
-		$to_insert = array("tanggal" => date('Y-m-d'),
-						   "nim" => $nim,
-						   "id_jadwal" => $id_jadwal,
-						   "jam_presensi" => $waktu_absen,
-						   "status" => $status,
-						   "keterlambatan" => $durasi_telat,
-						   "created_at" =>  date('Y-m-d H:i:s'),
-						   "update_at" => date('Y-m-d H:i:s')
-						   );
-	    $this->db->insert('kehadiran',$to_insert);
-		return true;
-		
+		return true;	
 	}
 	
 	function sendOutput($dataArray, $status, $miss_param = array()) {
@@ -218,7 +429,11 @@ class m_api extends CI_Model {
 		die ();
 	}
 	
-	/* Untuk memvalidasi parameter benar semuanya terkirim dan tidak null */
+	/*
+	 * Untuk memvalidasi parameter benar semuanya terkirim dan tidak null
+	 * Untuk memvalidasi parameter benar semuanya terkirim dan tidak null
+	 *
+	 */
 	function requireValidation($param) {
 		// function utk check requirement wajib
 		$invalid = 0;
@@ -237,7 +452,7 @@ class m_api extends CI_Model {
 		);
 		if (! $hasil ['status']) {
 			$this->sendOutput ( array (
-					'pic' => 'E-Presensi System' 
+					'pic' => "E-Presensi System" 
 			), 402, $invalid_param );
 		} else {
 			return $hasil;
@@ -259,7 +474,7 @@ class m_api extends CI_Model {
 			return true;
 		} else {
 			$this->sendOutput ( array (
-					'pic' => 'E-Presensi System' 
+					'pic' => "E-Presensi System" 
 			), 401 );
 		}
 	}
@@ -310,8 +525,6 @@ class m_api extends CI_Model {
 		}
 		return $randomString;
 	}
-	
-	
 }
 
 ?>
